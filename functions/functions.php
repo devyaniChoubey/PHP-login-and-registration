@@ -27,7 +27,11 @@ function token_generator(){
 }
 
 
+function send_email($email , $subject , $msg , $headers){
+      return mail($email , $subject , $msg , $headers);
+}
 
+/******************Validation Functions**************/
 function validate_user_registration(){
     $errors = [];
     $max = 20;
@@ -53,9 +57,7 @@ function validate_user_registration(){
      if(strlen($first_name) > $max){
         $errors[] =  "Your first name is greater than {$max} characters";
      }
-     if(strlen($email) > $max){
-        $errors[] =  "Your email is greater than {$max} characters";
-     }
+     
      
      if($password !== $confirm_password){
          $errors[] = "Password do not match";
@@ -74,6 +76,8 @@ function validate_user_registration(){
       }else{
         if(register_user($username , $email , $first_name ,
          $last_name , $password)){
+             set_message('<p class="bg-success text-center">Please check your email or spam folder</p>');
+             header('Location: index.php');
              echo "User Registered";
         }
       }
@@ -81,7 +85,7 @@ function validate_user_registration(){
     }
 }
 
-
+/******************Register User Functions**************/
 function register_user($username , $email , $first_name , $last_name , $password){
     $first_name = escape($first_name);
     $last_name = escape($last_name);
@@ -95,11 +99,20 @@ function register_user($username , $email , $first_name , $last_name , $password
         return false;
     }else{
        $password = md5($password);
-       $validation_code = md5($username + microtime());
+       $validation_code = md5($username);
        $sql = "INSERT INTO users(first_name , last_name , username , password , validation_code , active, email) VALUES('$first_name','$last_name','$username','$password','$validation_code',0,'$email')";
        
        $result = query($sql);
        confirm($result);
+
+       $subject = "Activate Account";
+
+       $msg = " Please click the link below to activate your account
+       http://localhost/login/activate.php?email=$email&code=$validation_code";
+
+       $headers = "From : noreply@yourwebsite.com";
+
+       send_email($email , $subject , $msg , $headers);
        return true;
     }
 }
@@ -130,5 +143,29 @@ function username_exists($username){
     }
 }
 
+/******************User Activation Functions**************/
+function activate_user(){
+    if($_SERVER['REQUEST_METHOD'] == "GET"){
+        if(isset($_GET['email'])){
+            echo $email = clean($_GET['email']);
+            echo $validation_code = clean($_GET['code']);
+            $sql = "SELECT id FROM users WHERE email = " .escape($_GET['email']) . " AND validation_code =". escape($_GET['code']) ."";
+
+            $result = query($sql);
+
+            confirm($result);
+            
+            if(row_count($result) == 1){
+                $sql2 = "UPDATE users SET active = 1, validation_code = 0 WHERE email =" . escape($email) . "AND validation_code =" . escape($code) . "";
+                
+                $result2 = query($sql2);
+
+                confirm($result2);
+                set_message("<p class='bg-success'>Your account has been activated please login</p>");
+                header("Location : login.php");
+            }
+        }
+    }
+}
 
 ?>
