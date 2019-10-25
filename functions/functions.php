@@ -44,7 +44,7 @@ function validate_user_registration(){
       $email      = clean($_POST['email']);
       $password   = clean($_POST['password']);
       $confirm_password = clean($_POST['confirm_password']);
-   
+        
       if(strlen($first_name) < $min){
          $errors[] =  "Your first name is less than {$min} characters";
       }
@@ -71,7 +71,7 @@ function validate_user_registration(){
 
       if(!empty($errors)){
           foreach($errors as $error){
-             echo $error;  
+             echo "<p class='bg-danger text-center'>{$error}</p>";
           }
       }else{
         if(register_user($username , $email , $first_name ,
@@ -79,6 +79,9 @@ function validate_user_registration(){
              set_message('<p class="bg-success text-center">Please check your email or spam folder</p>');
              header('Location: index.php');
              echo "User Registered";
+        }else{
+            set_message('<p class="bg-danger text-center">Sorry we could not register the user</p>');
+            header('Location: index.php');
         }
       }
 
@@ -110,7 +113,7 @@ function register_user($username , $email , $first_name , $last_name , $password
        $msg = " Please click the link below to activate your account
        http://localhost/login/activate.php?email=$email&code=$validation_code";
 
-       $headers = "From : noreply@yourwebsite.com";
+       $headers = "From : devyanichoubey16@gmail.com";
 
        send_email($email , $subject , $msg , $headers);
        return true;
@@ -145,27 +148,77 @@ function username_exists($username){
 
 /******************User Activation Functions**************/
 function activate_user(){
-    if($_SERVER['REQUEST_METHOD'] == "GET"){
+    if($_SERVER['REQUEST_METHOD'] === "GET"){
         if(isset($_GET['email'])){
             echo $email = clean($_GET['email']);
             echo $validation_code = clean($_GET['code']);
-            $sql = "SELECT id FROM users WHERE email = " .escape($_GET['email']) . " AND validation_code =". escape($_GET['code']) ."";
 
+            $sql = "SELECT id FROM users WHERE email = '". escape($_GET['email']) ."' AND validation_code = '" .escape($_GET['code']). "'";
             $result = query($sql);
-
             confirm($result);
-            
-            if(row_count($result) == 1){
-                $sql2 = "UPDATE users SET active = 1, validation_code = 0 WHERE email =" . escape($email) . "AND validation_code =" . escape($code) . "";
-                
-                $result2 = query($sql2);
 
-                confirm($result2);
-                set_message("<p class='bg-success'>Your account has been activated please login</p>");
-                header("Location : login.php");
+            if(row_count($result) == 1){
+              $sql2 = "UPDATE users SET active = 1, validation_code = 0 WHERE email = '". escape($email)."' AND validation_code = '". escape($validation_code). "'";
+              $result2 = query($sql2);
+              confirm($result2);
+              set_message('<p class="bg-success text-center">Your account is now successfully activated please login</p>');
+              header('Location: login.php');
+            }else{
+                set_message('<p class="bg-danger text-center">Sorry your account is not activated</p>');
+                header('Location: login.php');
+               
             }
         }
     }
+}
+
+function validate_user_login(){
+    $errors = [];
+    if($_SERVER['REQUEST_METHOD'] === "POST"){
+        echo "It Works";
+
+        $email = clean($_POST['email']);
+        $password = clean($_POST['password']);
+
+        if(empty($email)){
+            $errors[] = "Email field can not be empty";
+        }
+        if(empty($password)){
+            $errors[] = "Password field can not be empty";
+        }
+
+        if(!empty($errors)){
+            foreach ($errors as $error){
+               echo "<p class='bg-danger text-center'>{$error}</p>";
+            }
+        }else{
+            if(login_user($email , $password)){
+                header('Location: admin.php');
+                
+            }else{
+                echo "<p class='bg-danger text-center'>Invalid Credentials</p>";
+            }
+        }
+    }
+
+}
+
+
+function login_user($email , $password){
+      $sql = "SELECT id , password FROM users WHERE email = '". escape($email) ."' AND active = 1";
+      $result = query($sql);
+      confirm($result);
+      if(row_count($result) == 1){
+          $row = fetch_array($result);
+          $db_password = $row['password'];
+          if(md5($password) == $db_password){
+              return true;
+          }else{
+              return false;
+          }
+      }else{
+          return false;
+      }
 }
 
 ?>

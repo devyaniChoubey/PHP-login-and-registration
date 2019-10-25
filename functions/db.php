@@ -1,5 +1,5 @@
 <?php 
- $con = mysqli_connect('localhost','root','','login_db1');
+ $con = mysqli_connect('localhost','root','','login_db2');
  
  function row_count($result){
      return mysqli_num_rows($result);
