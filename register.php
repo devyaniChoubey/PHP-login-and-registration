@@ -2,7 +2,7 @@
 <?php include("includes/navbar.php") ?>
 <div class="container">
     <div class="row">
-		<div class="col-lg-6 col-lg-offset-3">
+	<div class="col-md-6 col-md-offset-3">
 		<?php  validate_user_registration() ?>
         </div>
 	</div>

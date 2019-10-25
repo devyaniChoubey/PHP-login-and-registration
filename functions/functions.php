@@ -7,6 +7,14 @@ function redirect($location){
     return header("Location : {$location}");
 }
 
+function validation_errors($error){
+    echo "<div class='alert alert-danger alert-dismissible' role='alert'>
+    <button type='button' class='close' data-dismiss='alert'>
+        <span aria-hidden='true'>×</span><span class='sr-only'>Close</span>
+    </button> Warning!<span>{$error}</span>
+    </div>";
+}
+
 function set_message($message){
     if(!empty($message)){
         $_SESSION['message'] = $message;
@@ -27,8 +35,8 @@ function token_generator(){
 }
 
 
-function send_email($email , $subject , $msg , $headers){
-      return mail($email , $subject , $msg , $headers);
+function send_email($email , $subject , $msg , $header){
+      return mail($email , $subject , $msg , $header);
 }
 
 /******************Validation Functions**************/
@@ -71,7 +79,7 @@ function validate_user_registration(){
 
       if(!empty($errors)){
           foreach($errors as $error){
-             echo "<p class='bg-danger text-center'>{$error}</p>";
+             validation_errors($error);
           }
       }else{
         if(register_user($username , $email , $first_name ,
@@ -113,9 +121,9 @@ function register_user($username , $email , $first_name , $last_name , $password
        $msg = " Please click the link below to activate your account
        http://localhost/login/activate.php?email=$email&code=$validation_code";
 
-       $headers = "From : devyanichoubey16@gmail.com";
+       $header = "From : devyanichoubey16@gmail.com";
 
-       send_email($email , $subject , $msg , $headers);
+       send_email($email , $subject , $msg , $header);
        return true;
     }
 }
@@ -175,10 +183,11 @@ function activate_user(){
 function validate_user_login(){
     $errors = [];
     if($_SERVER['REQUEST_METHOD'] === "POST"){
-        echo "It Works";
+       
 
-        $email = clean($_POST['email']);
+        $email    = clean($_POST['email']);
         $password = clean($_POST['password']);
+        $remember = isset($_POST['remember']);
 
         if(empty($email)){
             $errors[] = "Email field can not be empty";
@@ -189,11 +198,12 @@ function validate_user_login(){
 
         if(!empty($errors)){
             foreach ($errors as $error){
-               echo "<p class='bg-danger text-center'>{$error}</p>";
+               validation_errors($error);
             }
         }else{
-            if(login_user($email , $password)){
+            if(login_user($email , $password, $remember)){
                 header('Location: admin.php');
+                $_SESSION['email'] = $email;
                 
             }else{
                 echo "<p class='bg-danger text-center'>Invalid Credentials</p>";
@@ -204,7 +214,7 @@ function validate_user_login(){
 }
 
 
-function login_user($email , $password){
+function login_user($email , $password , $remember){
       $sql = "SELECT id , password FROM users WHERE email = '". escape($email) ."' AND active = 1";
       $result = query($sql);
       confirm($result);
@@ -212,6 +222,9 @@ function login_user($email , $password){
           $row = fetch_array($result);
           $db_password = $row['password'];
           if(md5($password) == $db_password){
+             if($remember = "on"){
+                 setcookie('email' , $email , time() + 86400);
+             }
               return true;
           }else{
               return false;
@@ -221,4 +234,64 @@ function login_user($email , $password){
       }
 }
 
+/******************Logged in Functions**************/
+function logged_in(){
+    if(isset($_SESSION['email']) || isset($_COOKIE['email'])){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+/******************Password Recover Functions**************/
+function recover_password(){
+    if($_SERVER['REQUEST_METHOD'] == "POST"){
+        if(isset($_SESSION['token']) && $_POST['token'] == $_SESSION['token']){
+
+
+        $email = clean($_POST['email']);
+        if(email_exists($email)){
+           $validation_code = md5($email);
+           setcookie('temp_access_code', $validation_code , time() + 60);
+           
+           $sql = "UPDATE users SET validation_code = '".escape($validation_code)."' WHERE email = '".escape($email)."'";
+           $result = query($sql);
+           confirm($result);
+
+           $subject = "Please reset your password";
+           $msg = "Here is your password reset code {$validation_code}
+           Click here to reset your password http://localhost/code.php?email=$email&code=$validation_code";
+           $header = "From : devyanichoubey16@gmail.com";
+           
+           set_message("<p class='bg-green text-center'>Please check your email or spam folder for password recovery link</p>");
+           header('Location: index.php');
+        }else{
+            echo "<p class='bg-danger text-center'>The email does not exist</p>";
+        }
+        }else{
+            header('Location: index.php');
+        }
+    }
+}
+
+/*****************Code Validation*************/
+function validation_code(){
+    if(isset($_COOKIE['temp_access_code'])){
+      
+          if(!isset($_GET['email']) && !isset($_GET['code'])){
+             header('Location: index.php');
+          }else if(empty($_GET['email']) || empty($_GET['code'])){
+             header('Location: index.php'); 
+          }else{
+               if(isset($_POST['code'])){
+                   echo "Code sent";
+               }
+             
+          }
+      
+    }else{
+        echo "<p class='bg-danger text-center'>Your validation code cookie has expired</p>";
+        header('Location: recover.php');
+    }
+}
 ?>
