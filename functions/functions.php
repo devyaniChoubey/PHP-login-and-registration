@@ -252,7 +252,7 @@ function recover_password(){
         $email = clean($_POST['email']);
         if(email_exists($email)){
            $validation_code = md5($email);
-           setcookie('temp_access_code', $validation_code , time() + 60);
+           setcookie('temp_access_code', $validation_code , time() + 120);
            
            $sql = "UPDATE users SET validation_code = '".escape($validation_code)."' WHERE email = '".escape($email)."'";
            $result = query($sql);
@@ -260,10 +260,10 @@ function recover_password(){
 
            $subject = "Please reset your password";
            $msg = "Here is your password reset code {$validation_code}
-           Click here to reset your password http://localhost/code.php?email=$email&code=$validation_code";
+           Click here to reset your password http://localhost/login/code.php?email=$email&code=$validation_code";
            $header = "From : devyanichoubey16@gmail.com";
            
-           set_message("<p class='bg-green text-center'>Please check your email or spam folder for password recovery link</p>");
+           set_message("<p class='bg-success text-center'>Please check your email or spam folder for password recovery link</p>");
            header('Location: index.php');
         }else{
             echo "<p class='bg-danger text-center'>The email does not exist</p>";
@@ -284,7 +284,17 @@ function validation_code(){
              header('Location: index.php'); 
           }else{
                if(isset($_POST['code'])){
-                   echo "Code sent";
+                   $email           = clean($_GET['email']);
+                   $validation_code = clean($_POST['code']);
+                   $sql = "SELECT id FROM users WHERE validation_code ='".escape($validation_code)."' AND email = '".escape($email)."'";
+                   $result = query($sql);
+                   
+                   if(row_count($result) == 1){
+                    header('Location: reset.php'); 
+                   }else{
+                    set_message("<p class='bg-danger text-center'>Sorry wrong validation code</p>");
+             
+                   }
                }
              
           }
