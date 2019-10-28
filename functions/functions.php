@@ -1,4 +1,5 @@
-<?php 
+<?php include('phpmail.php');
+
 function clean($string){
    return htmlentities($string);
 }
@@ -35,8 +36,9 @@ function token_generator(){
 }
 
 
-function send_email($email , $subject , $msg , $header){
-      return mail($email , $subject , $msg , $header);
+function send_mail($email, $subject, $msg, $headers)
+{
+    return send_php_mail($email, $subject, $msg, $headers);
 }
 
 /******************Validation Functions**************/
@@ -82,15 +84,15 @@ function validate_user_registration(){
              validation_errors($error);
           }
       }else{
-        if(register_user($username , $email , $first_name ,
-         $last_name , $password)){
-             set_message('<p class="bg-success text-center">Please check your email or spam folder</p>');
-             header('Location: index.php');
-             echo "User Registered";
-        }else{
-            set_message('<p class="bg-danger text-center">Sorry we could not register the user</p>');
-            header('Location: index.php');
-        }
+        
+        register_user($username , $email , $first_name ,
+         $last_name , $password);
+           
+            
+        // }else{
+        //     set_message('<p class="bg-danger text-center">Sorry we could not register the user</p>');
+        //     header('Location: index.php');
+        // }
       }
 
     }
@@ -115,15 +117,22 @@ function register_user($username , $email , $first_name , $last_name , $password
        
        $result = query($sql);
        confirm($result);
-
        $subject = "Activate Account";
-
-       $msg = " Please click the link below to activate your account
-       http://localhost/login/activate.php?email=$email&code=$validation_code";
+             
+       $msg = " <h2>Please click the link below to activate your account<h2>
+       <a href=\"http://localhost/login/activate.php?email=$email&code=$validation_code\">Link Here</a>";
 
        $header = "From : devyanichoubey16@gmail.com";
 
-       send_email($email , $subject , $msg , $header);
+       if(send_mail($email , $subject , $msg , $header)){
+           set_message('<p class="bg-success text-center">Please check your email or spam folder</p>');
+           header('Location: index.php');
+           echo "User Registered";  
+       }else{
+        set_message('<p class="bg-danger text-center">Email not sent</p>');
+        header('Location: index.php'); 
+       }
+     
        return true;
     }
 }
@@ -223,7 +232,7 @@ function login_user($email , $password , $remember){
           $db_password = $row['password'];
           if(md5($password) == $db_password){
              if($remember = "on"){
-                 setcookie('email' , $email , time() + 86400);
+                 setcookie('email' , $email , time() + 120);
              }
               return true;
           }else{
@@ -252,17 +261,17 @@ function recover_password(){
         $email = clean($_POST['email']);
         if(email_exists($email)){
            $validation_code = md5($email);
-           setcookie('temp_access_code', $validation_code , time() + 120);
+           setcookie('temp_access_code', $validation_code , time() + 900);
            
            $sql = "UPDATE users SET validation_code = '".escape($validation_code)."' WHERE email = '".escape($email)."'";
            $result = query($sql);
            confirm($result);
 
            $subject = "Please reset your password";
-           $msg = "Here is your password reset code {$validation_code}
-           Click here to reset your password http://localhost/login/code.php?email=$email&code=$validation_code";
+           $msg = "<h2>Here is your password reset code</h2> <h1>{$validation_code}</h1>
+           <h2>Click here to reset your password</h2> <a href=\"http://localhost/login/code.php?email=$email&code=$validation_code\">Link Here</a>";
            $header = "From : devyanichoubey16@gmail.com";
-           
+           send_mail($email , $subject , $msg , $header);
            set_message("<p class='bg-success text-center'>Please check your email or spam folder for password recovery link</p>");
            header('Location: index.php');
         }else{
@@ -270,6 +279,9 @@ function recover_password(){
         }
         }else{
             header('Location: index.php');
+        }
+        if(isset($_POST['cancel-submit'])){
+            header('Location: login.php');
         }
     }
 }
@@ -290,7 +302,8 @@ function validation_code(){
                    $result = query($sql);
                    
                    if(row_count($result) == 1){
-                    header('Location: reset.php'); 
+                    setcookie('temp_access_code', $validation_code , time()+300);
+                    header("Location: reset.php?email=$email&code=$validation_code"); 
                    }else{
                     set_message("<p class='bg-danger text-center'>Sorry wrong validation code</p>");
              
@@ -303,5 +316,27 @@ function validation_code(){
         echo "<p class='bg-danger text-center'>Your validation code cookie has expired</p>";
         header('Location: recover.php');
     }
+}
+
+
+/*****************Password Reset *********/
+function password_reset(){
+    if(isset($_COOKIE['temp_access_code'])){
+        if(isset($_SESSION['token']) && isset($_POST['token']) && $_POST['token'] == $_SESSION['token']){
+            if(isset($_GET['email']) && isset($_GET['code'])){
+              if($_POST['password'] === $_POST['confirm_password']){
+                  $updated_password = md5($_POST['password']);
+                  $sql = "UPDATE users SET  validation_code = 0 ,active =1, password = '".escape($updated_password)."' WHERE email = '".escape($_GET['email'])."'";
+                  query($sql);
+                  set_message("<p class='bg-success text-center'>Your password has been successfully updated, please login</p>");
+                  header('Location: login.php');
+                }
+       }}
+    }else{
+        echo "<p class='bg-danger text-center'>Sorry your reset token has expired</p>";
+        header('Location: recover.php');
+    }
+   
+
 }
 ?>
